@@ -44,7 +44,7 @@ module seq_core #(
 );
     
     // the registers
-    logic [D_SIZE-1:0] R [0:7];
+    logic [D_SIZE-1:0] R [0:`REGISTER_COUNT-1];
     logic halted;
 
     // memory
@@ -86,7 +86,9 @@ module seq_core #(
             for (i =0; i < 8; i++) R[i] <= 0;    
             pc <= 0; halted <= 0; 
             read <= 0; write <= 0; 
-        end else if(!halted) begin
+        end 
+        else if(!halted) 
+        begin
             read <= 0; write <= 0;
             pc <= pc + 1;
             // decode the instruction
@@ -96,7 +98,10 @@ module seq_core #(
                     if(instruction == `HALT) halted <=1;
                 end
                 
-                // ------------ ALU -----------
+                
+                
+                
+                // ---------------- ALU ---------------
                 2'b00: begin
                     case(instruction[15:9])
                         `ADD    : R[op0] <= R[op1] + R[op2];
@@ -116,15 +121,33 @@ module seq_core #(
                     endcase
                 end
                 
+                
+                
+//                // ---------------- MEM WITHOUT ASSUMTIONS ---------------
+//                2'b10: begin
+//                    case(instruction[15:11])
+//                        `LOAD   : R[mem_op0] <= SRAM[R[mem_op1][A_SIZE-1:0]]; 
+//                        `LOADC  : R[mem_op0] <= {R[mem_op0][D_SIZE-1:8], mem_const};
+//                        `STORE  : SRAM[R[mem_op0][A_SIZE-1:0]] <= R[mem_op1];
+//                        default : ; //NOP
+//                    endcase
+//                end
+                
+                
+                //- LOAD instruction takes the current data_in value
+//as the data value to be saved in the destination register
+                  // ---------------- MEM ---------------
                 2'b10: begin
                     case(instruction[15:11])
-                        `LOAD   : R[mem_op0] <= SRAM[R[mem_op1][A_SIZE-1:0]]; 
+                        `LOAD   : R[mem_op0] <= data_in; 
                         `LOADC  : R[mem_op0] <= {R[mem_op0][D_SIZE-1:8], mem_const};
                         `STORE  : SRAM[R[mem_op0][A_SIZE-1:0]] <= R[mem_op1];
                         default : ; //NOP
                     endcase
                 end
                 
+                
+                // ---------------- JMP ---------------
                 2'b11: begin
                     case(instruction[15:12])
                         `JMP     : pc <= R[jmp_op0];

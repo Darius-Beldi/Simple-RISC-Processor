@@ -5,6 +5,7 @@
 `define MEMSIZE (1<<`A_BITS)
 
 // registers
+`define REGISTER_COUNT 4'd8
 `define R0 3'd0
 `define R1 3'd1
 `define R2 3'd2
@@ -41,9 +42,9 @@
 
 //JUMPS
 
-`define JMP     4'b11_00
-`define JMPR    4'b11_10
-`define JMPCOND 4'b11_01
+`define JMP      4'b11_00
+`define JMPR     4'b11_10
+`define JMPCOND  4'b11_01
 `define JMPRCOND 4'b11_11
 
 // Conditional jump conditions
@@ -52,4 +53,6 @@
 `define NN 3'b001
 `define Z  3'b010
 `define NZ 3'b011
+
+// test macros
 

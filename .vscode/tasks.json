@@ -1,0 +1,20 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Vivado: Run Simulation",
+      "type": "shell",
+      "command": "& vivado -mode batch -source run_sim.tcl",
+      "options": { "cwd": "${workspaceFolder}" },
+      "problemMatcher": [],
+      "group": "build"
+    },
+    // {
+    //     "label": "Vivado: Open Project GUI",
+    //     "type": "shell",
+    //     "command": "& vivado Simple-RISC-Processor.xpr",
+    //     "options": { "cwd": "${workspaceFolder}" },
+    //     "problemMatcher": []
+    // }
+  ]
+}

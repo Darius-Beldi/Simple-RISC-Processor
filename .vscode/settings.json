@@ -1,0 +1,17 @@
+
+
+{
+  "VsCodeTaskButtons.showCounter": true,
+  "VsCodeTaskButtons.tasks": [
+    {
+      "label": "$(play) Run Simulation",
+      "task": "Vivado: Run Simulation",
+      "tooltip": "Start the application"
+    },
+    {
+      "label": "$(window) Open Vivado",
+      "task": "Vivado: Open Project GUI",
+      "tooltip": "Open the project in the Vivado GUI"
+    }
+  ]
+}
