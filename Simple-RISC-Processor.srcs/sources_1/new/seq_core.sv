@@ -154,19 +154,19 @@ module seq_core #(
                         `JMPR    : pc <= pc + A_SIZE'($signed(jmp_offset));
                         `JMPCOND : begin
                                 case(instruction[11:9])
-                                    `N  : if(R[jmpc_op0] < 0)  pc = R[jmpc_op1];
-                                    `NN : if(R[jmpc_op0] >= 0) pc = R[jmpc_op1];
-                                    `Z  : if(R[jmpc_op0] == 0) pc = R[jmpc_op1];
-                                    `NZ : if(R[jmpc_op0] != 0) pc = R[jmpc_op1];
+                                    `N  : if(R[jmpc_op0] < 0)  pc <= R[jmpc_op1];
+                                    `NN : if(R[jmpc_op0] >= 0) pc <= R[jmpc_op1];
+                                    `Z  : if(R[jmpc_op0] == 0) pc <= R[jmpc_op1];
+                                    `NZ : if(R[jmpc_op0] != 0) pc <= R[jmpc_op1];
                                     default : ;//NOP
                                 endcase
                               end                       
                         `JMPRCOND:  begin
                                 case(instruction[11:9])
-                                    `N  : if(R[jmpc_op0] < 0)  pc = pc + A_SIZE'($signed(jmp_offset));
-                                    `NN : if(R[jmpc_op0] >= 0) pc = pc + A_SIZE'($signed(jmp_offset));
-                                    `Z  : if(R[jmpc_op0] == 0) pc = pc + A_SIZE'($signed(jmp_offset));
-                                    `NZ : if(R[jmpc_op0] != 0) pc = pc + A_SIZE'($signed(jmp_offset));
+                                    `N  : if(R[jmpc_op0] < 0)  pc <= pc + A_SIZE'($signed(jmp_offset));
+                                    `NN : if(R[jmpc_op0] >= 0) pc <= pc + A_SIZE'($signed(jmp_offset));
+                                    `Z  : if(R[jmpc_op0] == 0) pc <= pc + A_SIZE'($signed(jmp_offset));
+                                    `NZ : if(R[jmpc_op0] != 0) pc <= pc + A_SIZE'($signed(jmp_offset));
                                     default : ;//NOP
                                 endcase
                               end      
