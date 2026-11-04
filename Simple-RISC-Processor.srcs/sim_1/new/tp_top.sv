@@ -52,11 +52,7 @@ typedef enum logic [6:0] {
     NXOR_OP = `NXOR,
     SHIFTRA = `SHIFTRA,
     SHIFTR  = `SHIFTR,
-    SHIFTL  = `SHIFTL,
-    JMP     = `JMP,     
-    JMPR    = `JMPR,    
-    JMPCOND = `JMPCOND, 
-    JMPRCOND= `JMPRCOND
+    SHIFTL  = `SHIFTL
 } alu_op_t;
 
 logic[31:0] passed_tests = 0;
@@ -170,107 +166,97 @@ task automatic test_Shift();
     
 
 endtask
-
-typedef enum logic [6:0] {
-    N  = `N,
-    NN = `NN,
-    Z  = `Z,
-    NZ = `NZ
-} jmp_cond_t;
-
-
-
+// Drop-in replacement for test_JMP (also delete the jmp_cond_t typedef
+// and remove JMP/JMPR/JMPCOND/JMPRCOND from alu_op_t).
 task automatic test_JMP();
-    alu_op_t alu_op;
-    alu_op_t ops[] = '{JMP, JMPR, JMPCOND, JMPRCOND};
-
-    jmp_cond_t jmp_cond;
-    jmp_cond_t conds[] = '{N, NN, Z, NZ};
-
+    string              names[4] = '{"JMP", "JMPR", "JMPCOND", "JMPRCOND"};
+ 
     logic [2:0]         ra, rb, cond;
     logic [`D_BITS-1:0] ra_value, rb_value;
     logic [5:0]         offset;
+    logic [A_SIZE-1:0]  pc_jmp, expected;   // pc_jmp = address of the jump instruction
+    logic               taken;
+    int                 kind;
     logic [31:0]        n_passed = 0;
-    logic [`A_BITS-1:0] expected;
-
+ 
     repeat (`TEST_COUNT) begin
-      ra          = $urandom_range(0, `REGISTER_COUNT-1);
-      rb          = $urandom_range(0, `REGISTER_COUNT-1);
-      ra_value    = $urandom();
-      rb_value    = $urandom();
-      alu_op      = ops[$urandom_range(0, ops.size()-1)];
-      cond        = conds[$urandom_range(0, conds.size()-1)];
-      offset      = $urandom_range(0, 31);
-      expected    = (`A_BITS-1)'b0;
-      
-
+      ra       = $urandom_range(0, `REGISTER_COUNT-1);
+      rb       = $urandom_range(0, `REGISTER_COUNT-1);
+      kind     = $urandom_range(0, 3);
+      cond     = $urandom_range(0, 3);        // N, NN, Z, NZ  (000..011)
+      offset   = $urandom();                  // full signed 6-bit range
+      rb_value = $urandom();
+ 
+      // make zero / negative / positive ra_value all likely
+      ra_value = $urandom();
+      case ($urandom_range(0, 2))
+        0: ra_value = '0;
+        1: ra_value[`D_BITS-1] = 1'b1;
+        2: ra_value[`D_BITS-1] = 1'b0;
+      endcase
+ 
+      // load ra, then rb (if ra == rb the second load wins)
       data_in = ra_value; instruction = {`LOAD, ra, 8'b0}; @(negedge clk);
-      expected ++; // sync the expected value with the PC
       data_in = rb_value; instruction = {`LOAD, rb, 8'b0}; @(negedge clk);
-      expected ++; // sync the expected value with the PC
-      // execute
-      //construct the instruction
-      case(alu_op)
-        `JMP      : instruction = {`JMP, 9'b0, ra};
-        `JMPR     : instruction = {`JMPR, 6'b0, offset};
-        `JMPCOND  : instruction = {`JMPCOND, cond, ra, 3'b0, rb };
-        `JMPRCOND : instruction = {`JMPRCOND, cond, ra, offset}; 
+      if (ra == rb) ra_value = rb_value;
+ 
+      pc_jmp = pc;   // pc now points at the jump instruction
+ 
+      case (cond)
+        `N  : taken = ($signed(ra_value) <  0);
+        `NN : taken = ($signed(ra_value) >= 0);
+        `Z  : taken = (ra_value == 0);
+        `NZ : taken = (ra_value != 0);
+        default: taken = 1'b0;
       endcase
+ 
+      case (kind)
+        0: begin
+             instruction = {`JMP, 9'b0, ra};
+             expected    = ra_value[A_SIZE-1:0];
+           end
+        1: begin
+             instruction = {`JMPR, 6'b0, offset};
+             expected    = pc_jmp + A_SIZE'($signed(offset));
+           end
+        2: begin
+             instruction = {`JMPCOND, cond, ra, 3'b0, rb};
+             expected    = taken ? rb_value[A_SIZE-1:0] : pc_jmp + 1'b1;
+           end
+        3: begin
+             instruction = {`JMPRCOND, cond, ra, offset};
+             expected    = taken ? pc_jmp + A_SIZE'($signed(offset)) : pc_jmp + 1'b1;
+           end
+      endcase
+ 
       @(negedge clk);
-
-      case (alu_op)
-        `JMP      : expected = ra_value;
-        `JMPR     : expected = expected + offset;
-        `JMPCOND  : begin 
-                case(cond)
-                    `N  : expected = (ra_value <  0) ? rb_value : ;
-                    `NN : expected = (ra_value >= 0) ? rb_value : ;
-                    `Z  : expected = (ra_value == 0) ? rb_value : ; 
-                    `NZ : expected = (ra_value != 0) ? rb_value : ; 
-                endcase
-        end
-        `JMPRCOND : begin 
-                case(cond)
-                    `N  : expected = (ra_value <  0) ? pc + offset : ;
-                    `NN : expected = (ra_value >= 0) ? pc + offset : ;
-                    `Z  : expected = (ra_value == 0) ? pc + offset : ; 
-                    `NZ : expected = (ra_value != 0) ? pc + offset : ; 
-                endcase
-        end
-      endcase
-      
-
+ 
       if (expected !== pc)
-        $error("[ERROR] test_JMP | FAILED | %s ra=R%0d rb=R%0 ra_value=%d rb_value=%d offset=%0d exp=%0d got=%0d",
-                alu_op.name(), ra, rb, ra_value, rb_value, offset,  expected, pc);
+        $error("[ERROR] test_JMP | FAILED | %s ra=R%0d rb=R%0d cond=%0d ra_value=%0d rb_value=%0d offset=%0d exp=%0d got=%0d",
+                names[kind], ra, rb, cond, $signed(ra_value), rb_value, $signed(offset), expected, pc);
       else
-       // $display("test_Shift | PASSED | %s ra=R%0d shift_value=%0d exp=%0d got=%0d",
-             //   alu_op.name(), ra, shift_value,  expected, dut.R[ra]);
         n_passed = n_passed + 1;
-    end 
-    $display("[INFO] test_JMP | PASSED | %s ra=R%0d rb=R%0 ra_value=%d rb_value=%d offset=%0d exp=%0d got=%0d",
-                alu_op.name(), ra, rb, ra_value, rb_value, offset,  expected, pc);
+    end
+    $display("[INFO] test_JMP | JMP PASSED TESTS : %0d / %0d", n_passed, `TEST_COUNT);
     passed_tests = passed_tests + n_passed;
-    
-
 endtask
 
 
-task automatic run_Tests();
+task automatic runTests();
     
-    $display("[INFO] run_Tests | Started test_ALU() @ %0t", $time);
+    $display("[INFO] runTests | Started test_ALU() @ %0t", $time);
     test_ALU();
-    $display("[INFO] run_Tests | Finished test_ALU()  @ %0t", $time);
+    $display("[INFO] runTests | Finished test_ALU()  @ %0t", $time);
 
-    $display("[INFO] run_Tests | Started test_Shift()  @ %0t", $time);
+    $display("[INFO] runTests | Started test_Shift()  @ %0t", $time);
     test_Shift();
-    $display("[INFO] run_Tests | Finished test_Shift()  @ %0t", $time);
+    $display("[INFO] runTests | Finished test_Shift()  @ %0t", $time);
     
-    $display("[INFO] run_Tests | Started test_JMP()  @ %0t", $time);
+    $display("[INFO] runTests | Started test_JMP()  @ %0t", $time);
     test_JMP();
-    $display("[INFO] run_Tests | Finished test_JMP()  @ %0t", $time);
+    $display("[INFO] runTests | Finished test_JMP()  @ %0t", $time);
 
-    $display("[INFO] run_Tests | TOTAL RUN TESTS : %0d PASSED : %0d", (`TEST_COUNT * 3) , passed_tests);
+    $display("[INFO] runTests | TOTAL RUN TESTS : %0d PASSED : %0d", (`TEST_COUNT * 3) , passed_tests);
 
 endtask
 
@@ -282,7 +268,7 @@ initial begin
     repeat(2)@(negedge clk);
     rst = 1'b1;
     @(negedge clk);
-    run_Tests();
+    runTests();
     $finish;
 end
 

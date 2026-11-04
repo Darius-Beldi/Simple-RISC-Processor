@@ -52,7 +52,7 @@
 `define N  3'b000
 `define NN 3'b001
 `define Z  3'b010
-`define NZ 3'b011a
+`define NZ 3'b011
 
 // test macros
 
