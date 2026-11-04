@@ -13,7 +13,9 @@ module tb_top ;
     // INPUT
     logic              rst;   
     logic              clk;
-    logic [15:0]       instruction;
+    logic [15:0]       instruction;      // driven ONLY by the assign below
+    logic [15:0]       instr_manual;     // driven procedurally by the tests
+    logic              use_imem = 1'b0;  // 0 = tests drive the core, 1 = instructionSet[pc] drives it
     logic [D_SIZE-1:0] data_in;
 
     // OUTPUT
@@ -22,6 +24,10 @@ module tb_top ;
     logic              write; 
     logic [A_SIZE-1:0] address;
     logic [D_SIZE-1:0] data_out;  
+
+    logic [`INSTRUCTIONLENGHT-1:0] instructionSet [`INSTRUCTIONNUMBER:0];
+
+    assign instruction = use_imem ? instructionSet[pc] : instr_manual;
 
     initial clk = 0;
 
@@ -57,14 +63,6 @@ typedef enum logic [6:0] {
 
 logic[31:0] passed_tests = 0;
 
-logic[`INSTRUCTIONNUMBER:0] instructionSet[`INSTRUCTIONLENGHT];
-
-// instructionSet = '{
-//     0: 
-//     1:
-//     2:
-    
-// }
 
 task automatic test_ALU();
     alu_op_t alu_op;
@@ -89,13 +87,13 @@ task automatic test_ALU();
       alu_op   = ops[$urandom_range(0, ops.size()-1)];
 
       // load rb, then rc (order matters if rb == rc)
-      data_in = rb_value; instruction = {`LOAD, rb, 8'b0}; @(negedge clk);
+      data_in = rb_value; instr_manual = {`LOAD, rb, 8'b0}; @(negedge clk);
       model[rb] = rb_value;
-      data_in = rc_value; instruction = {`LOAD, rc, 8'b0}; @(negedge clk);
+      data_in = rc_value; instr_manual = {`LOAD, rc, 8'b0}; @(negedge clk);
       model[rc] = rc_value;
       
       // execute
-      instruction = {alu_op, ra, rb, rc};
+      instr_manual = {alu_op, ra, rb, rc};
       @(negedge clk);
 
       a = model[rb];
@@ -140,10 +138,10 @@ task automatic test_Shift();
       shift_value = $urandom_range(0, 31);
       alu_op      = ops[$urandom_range(0, ops.size()-1)];
 
-      data_in = ra_value; instruction = {`LOAD, ra, 8'b0}; @(negedge clk);
+      data_in = ra_value; instr_manual = {`LOAD, ra, 8'b0}; @(negedge clk);
 
       // execute
-      instruction = {alu_op, ra, shift_value};
+      instr_manual = {alu_op, ra, shift_value};
       @(negedge clk);
 
       case (alu_op)
@@ -196,8 +194,8 @@ task automatic test_JMP();
       endcase
  
       // load ra, then rb (if ra == rb the second load wins)
-      data_in = ra_value; instruction = {`LOAD, ra, 8'b0}; @(negedge clk);
-      data_in = rb_value; instruction = {`LOAD, rb, 8'b0}; @(negedge clk);
+      data_in = ra_value; instr_manual = {`LOAD, ra, 8'b0}; @(negedge clk);
+      data_in = rb_value; instr_manual = {`LOAD, rb, 8'b0}; @(negedge clk);
       if (ra == rb) ra_value = rb_value;
  
       pc_jmp = pc;   // pc now points at the jump instruction
@@ -212,19 +210,19 @@ task automatic test_JMP();
  
       case (kind)
         0: begin
-             instruction = {`JMP, 9'b0, ra};
+             instr_manual = {`JMP, 9'b0, ra};
              expected    = ra_value[A_SIZE-1:0];
            end
         1: begin
-             instruction = {`JMPR, 6'b0, offset};
+             instr_manual = {`JMPR, 6'b0, offset};
              expected    = pc_jmp + A_SIZE'($signed(offset));
            end
         2: begin
-             instruction = {`JMPCOND, cond, ra, 3'b0, rb};
+             instr_manual = {`JMPCOND, cond, ra, 3'b0, rb};
              expected    = taken ? rb_value[A_SIZE-1:0] : pc_jmp + 1'b1;
            end
         3: begin
-             instruction = {`JMPRCOND, cond, ra, offset};
+             instr_manual = {`JMPRCOND, cond, ra, offset};
              expected    = taken ? pc_jmp + A_SIZE'($signed(offset)) : pc_jmp + 1'b1;
            end
       endcase
@@ -260,10 +258,32 @@ task automatic runTests();
 
 endtask
 
+//task automatic multiplicationAlgorithm()
+
+//     instructionSet = '{
+//     0: {},
+//     1: {},
+//     2: {}
+//     }
+
+
+
+
+
+
+
+
+
+
+//endtask
+
+
+
+
 initial begin
     $display("TB START @ %0t", $time);
     rst = 1'b0;
-    instruction = `NOP;
+    instr_manual = `NOP;
     data_in = '0;
     repeat(2)@(negedge clk);
     rst = 1'b1;
