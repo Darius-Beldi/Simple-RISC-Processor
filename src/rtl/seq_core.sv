@@ -19,7 +19,7 @@
 // 
 //////////////////////////////////////////////////////////////////////////////////
 
-`include "macros.vh"
+`include "macros.svh"
 
 module seq_core #(
         parameter A_SIZE  = `A_BITS,

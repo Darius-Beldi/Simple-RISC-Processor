@@ -1,0 +1,6 @@
+.Xil/
+logs/
+sim/
+*.jou
+*.log
+*.pb

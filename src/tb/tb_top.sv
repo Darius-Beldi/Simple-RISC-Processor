@@ -1,5 +1,6 @@
 `timescale 1ns / 1ps
-`include "macros.vh"
+
+`include "macros.svh"
 `define MAXINSTRUCTIONS 16
 `define INSTRUCTIONLENGHT 16
 `define TEST_COUNT 1000
